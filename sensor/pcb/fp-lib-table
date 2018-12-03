@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name ENBLE)(type KiCad)(uri "$(KIPRJMOD)/ENBLE.pretty")(options "")(descr ""))
+)
