@@ -75,6 +75,8 @@
 #include "ble_advertising.h"
 #include "ble_conn_state.h"
 
+#include "ble_enble.h"
+
 #define NRF_LOG_MODULE_NAME "MAIN"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -120,10 +122,7 @@
 
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
 
-/* YOUR_JOB: Declare all services structure your application is using
-   static ble_xx_service_t                     m_xxs;
-   static ble_yy_service_t                     m_yys;
- */
+static ble_enble_t m_enble_instance;
 
 // YOUR_JOB: Use UUIDs for service(s) used in your application.
 static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}}; /**< Universally unique service identifiers. */
@@ -311,8 +310,7 @@ static void gap_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for handling the YYY Service events.
- * YOUR_JOB implement a service handler function depending on the event the service you are using can generate
+/**@brief Function for handling the Enble Service events. 
  *
  * @details This function will be called for all YY Service events which are passed to
  *          the application.
@@ -320,49 +318,38 @@ static void gap_params_init(void)
  * @param[in]   p_yy_service   YY Service structure.
  * @param[in]   p_evt          Event received from the YY Service.
  *
- *
-   static void on_yys_evt(ble_yy_service_t     * p_yy_service,
-                       ble_yy_service_evt_t * p_evt)
-   {
-    switch (p_evt->evt_type)
-    {
-        case BLE_YY_NAME_EVT_WRITE:
-            APPL_LOG("[APPL]: charact written with value %s. \r\n", p_evt->params.char_xx.value.p_str);
-            break;
+ */
+static void on_enble_device_id_update_evt(ble_enble_t *p_enble, uint16_t new_value)
+{
+    ble_enble_update_device_id(p_enble, new_value);
+}
 
-        default:
-            // No implementation needed.
-            break;
-    }
-   }*/
+/**@brief Function for handling the Enble Service events. 
+ *
+ * @details This function will be called for all YY Service events which are passed to
+ *          the application.
+ *
+ * @param[in]   p_yy_service   YY Service structure.
+ * @param[in]   p_evt          Event received from the YY Service.
+ *
+ */
+static void on_enble_period_update_evt(ble_enble_t *p_enble, uint16_t new_value)
+{
+    ble_enble_update_period(p_enble, new_value);
+}
 
 /**@brief Function for initializing services that will be used by the application.
  */
 static void services_init(void)
 {
-    /* YOUR_JOB: Add code to initialize the services used by the application.
-       uint32_t                           err_code;
-       ble_xxs_init_t                     xxs_init;
-       ble_yys_init_t                     yys_init;
+    uint32_t err_code;
+    ble_enble_init_t enble_init;
 
-       // Initialize XXX Service.
-       memset(&xxs_init, 0, sizeof(xxs_init));
+    enble_init.device_id_update_handler = on_enble_device_id_update_evt;
+    enble_init.period_update_handler = on_enble_period_update_evt;
 
-       xxs_init.evt_handler                = NULL;
-       xxs_init.is_xxx_notify_supported    = true;
-       xxs_init.ble_xx_initial_value.level = 100;
-
-       err_code = ble_bas_init(&m_xxs, &xxs_init);
-       APP_ERROR_CHECK(err_code);
-
-       // Initialize YYY Service.
-       memset(&yys_init, 0, sizeof(yys_init));
-       yys_init.evt_handler                  = on_yys_evt;
-       yys_init.ble_yy_initial_value.counter = 0;
-
-       err_code = ble_yy_service_init(&yys_init, &yy_init);
-       APP_ERROR_CHECK(err_code);
-     */
+    err_code = ble_enble_init(&m_enble_instance, &enble_init);
+    APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for handling the Connection Parameters Module.
