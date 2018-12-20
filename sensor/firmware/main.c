@@ -76,6 +76,7 @@
 #include "ble_conn_state.h"
 
 #include "ble_enble.h"
+#include "led_button.h"
 
 #define NRF_LOG_MODULE_NAME "MAIN"
 #include "nrf_log.h"
@@ -696,6 +697,22 @@ static void power_manage(void)
     APP_ERROR_CHECK(err_code);
 }
 
+static void button_event_handler()
+{
+    led_blink(50);
+}
+
+static void peripheral_init()
+{
+    uint32_t err_code;
+
+    err_code = led_init();
+    APP_ERROR_CHECK(err_code);
+
+    err_code = button_init(button_event_handler);
+    APP_ERROR_CHECK(err_code);
+}
+
 /**@brief Function for starting advertising.
  */
 static void advertising_start(void)
@@ -727,6 +744,8 @@ int main(void)
     advertising_init();
     services_init();
     conn_params_init();
+
+    peripheral_init();
 
     // Start execution.
     NRF_LOG_INFO("Template started\r\n");
