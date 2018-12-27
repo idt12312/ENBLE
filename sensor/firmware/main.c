@@ -75,8 +75,12 @@
 #include "ble_advertising.h"
 #include "ble_conn_state.h"
 
+#include "nrf_drv_clock.h"
+
 #include "ble_enble.h"
 #include "led_button.h"
+#include "bme280.h"
+
 
 #define NRF_LOG_MODULE_NAME "MAIN"
 #include "nrf_log.h"
@@ -700,6 +704,12 @@ static void power_manage(void)
 static void button_event_handler()
 {
     led_blink(50);
+    bme280_start_measuring();
+}
+
+static void bme280_data_handler(const BME280MeasurementData *measurement_data)
+{
+    NRF_LOG_INFO("%u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity);
 }
 
 static void peripheral_init()
@@ -710,6 +720,9 @@ static void peripheral_init()
     APP_ERROR_CHECK(err_code);
 
     err_code = button_init(button_event_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = bme280_init(bme280_data_handler);
     APP_ERROR_CHECK(err_code);
 }
 

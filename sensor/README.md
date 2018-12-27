@@ -35,7 +35,7 @@ This characteristic indicates temperature in ℃ **multiplied by 10**.
 This characteristic indicates humidity in % **multiplied by 10**. 
 
 ### AirPressure
-This characteristic indicates humidity in hPa. 
+This characteristic indicates air pressure in hPa. 
 
 
 
