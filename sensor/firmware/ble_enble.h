@@ -80,7 +80,7 @@ void ble_enble_on_ble_evt(ble_enble_t *p_enble, ble_evt_t *p_ble_evt);
 uint32_t ble_enble_update_device_id(ble_enble_t *p_enble, uint16_t new_value);
 uint32_t ble_enble_update_period(ble_enble_t *p_enble, uint16_t new_value);
 uint32_t ble_enble_update_battery(ble_enble_t *p_enble, uint16_t new_value);
-uint32_t ble_enble_update_temperature(ble_enble_t *p_enble, uint16_t new_value);
+uint32_t ble_enble_update_temperature(ble_enble_t *p_enble, int16_t new_value);
 uint32_t ble_enble_update_humidity(ble_enble_t *p_enble, uint16_t new_value);
 uint32_t ble_enble_update_pressure(ble_enble_t *p_enble, uint16_t new_value);
 

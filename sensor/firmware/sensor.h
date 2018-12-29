@@ -5,7 +5,7 @@
 
 typedef struct
 {
-    uint16_t temperature; // ℃ x10
+    int16_t temperature; // ℃ x10
     uint16_t humidity;    // % x10
     uint16_t pressure;    // hPa
     uint16_t battery;

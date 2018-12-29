@@ -103,7 +103,7 @@ static void sensor_data_handler(const SensorMeasurementData *measurement_data)
 
     led_blink(5);
 
-    NRF_LOG_DEBUG("%u %u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity, measurement_data->battery);
+    NRF_LOG_DEBUG("%d %u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity, measurement_data->battery);
 
     err_code = advertising_update_data(measurement_data);
     APP_ERROR_CHECK(err_code);

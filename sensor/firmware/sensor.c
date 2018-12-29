@@ -163,9 +163,9 @@ static int32_t bme280_compensate_temperature(uint32_t uncomp_data)
     const int32_t temperature_min = -4000;
     const int32_t temperature_max = 8500;
 
-    var1 = (int32_t)((uncomp_data >> 3) - ((int32_t)m_bme280_calib_data.dig_T1 << 1));
+    var1 = (int32_t)(((int32_t)uncomp_data >> 3) - ((int32_t)m_bme280_calib_data.dig_T1 << 1));
     var1 = (var1 * ((int32_t)m_bme280_calib_data.dig_T2)) >> 11;
-    var2 = (int32_t)((uncomp_data >> 4) - ((int32_t)m_bme280_calib_data.dig_T1));
+    var2 = (int32_t)(((int32_t)uncomp_data >> 4) - ((int32_t)m_bme280_calib_data.dig_T1));
     var2 = (((var2 * var2) >> 12) * ((int32_t)m_bme280_calib_data.dig_T3)) >> 14;
     m_bme280_calib_data.t_fine = var1 + var2;
     temperature = (m_bme280_calib_data.t_fine * 5 + 128) >> 8;
@@ -276,14 +276,14 @@ static void parse_sensor_data()
     uint32_t humidity_uncomp_data = MARGE_16BIT(m_bme280_spi_rx_buffer[7], m_bme280_spi_rx_buffer[8]);
 
     // temperature in DegC, resolution is 0.01 DegC
-    uint32_t temperature_data = bme280_compensate_temperature(temperature_uncomp_data);
+    int32_t temperature_data = bme280_compensate_temperature(temperature_uncomp_data);
     // pressure in Pa
     uint32_t pressure_data = bme280_compensate_pressure(pressure_uncomp_data);
     // humidity in %, resolution is 0.001 %
     uint32_t humidity_data = bme280_compensate_humidity(humidity_uncomp_data);
 
     // temperature in ℃ multiplied by 10
-    m_sensor_measurment_data.temperature = (uint16_t)(temperature_data / 10);
+    m_sensor_measurment_data.temperature = (int16_t)(temperature_data / 10);
     // air pressure in hPa
     m_sensor_measurment_data.pressure = (uint16_t)(pressure_data / 100);
     // humidity in % multiplied by 10

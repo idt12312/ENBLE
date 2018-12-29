@@ -300,7 +300,7 @@ uint32_t ble_enble_update_battery(ble_enble_t *p_enble, uint16_t new_value)
     return update_char_value(p_enble, &p_enble->battery_handles, (const uint8_t *)&new_value, 2);
 }
 
-uint32_t ble_enble_update_temperature(ble_enble_t *p_enble, uint16_t new_value)
+uint32_t ble_enble_update_temperature(ble_enble_t *p_enble, int16_t new_value)
 {
     return update_char_value(p_enble, &p_enble->temperature_handles, (const uint8_t *)&new_value, 2);
 }
