@@ -78,9 +78,7 @@
 #include "nrf_drv_clock.h"
 
 #include "ble_enble.h"
-#include "led_button.h"
-#include "bme280.h"
-
+#include "app_enble.h"
 
 #define NRF_LOG_MODULE_NAME "MAIN"
 #include "nrf_log.h"
@@ -97,10 +95,7 @@
 #define CENTRAL_LINK_COUNT 0    /**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
 #define PERIPHERAL_LINK_COUNT 1 /**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 
-#define DEVICE_NAME "ENBLE"           /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME "NordicSemiconductor" /**< Manufacturer. Will be passed to Device Information Service. */
-#define APP_ADV_INTERVAL 300                    /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS 180          /**< The advertising timeout in units of seconds. */
+#define DEVICE_NAME "ENBLE"                     /**< Name of device. Will be included in the advertising data. */
 
 #define APP_TIMER_PRESCALER 0     /**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_OP_QUEUE_SIZE 4 /**< Size of timer operation queues. */
@@ -129,26 +124,7 @@ static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the curr
 
 static ble_enble_t m_enble_instance;
 
-// YOUR_JOB: Use UUIDs for service(s) used in your application.
-static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}}; /**< Universally unique service identifiers. */
 
-static void advertising_start(void);
-
-/**@brief Callback function for asserts in the SoftDevice.
- *
- * @details This function will be called in case of an assert in the SoftDevice.
- *
- * @warning This handler is an example only and does not fit a final product. You need to analyze
- *          how your product is supposed to react in case of Assert.
- * @warning On assert from the SoftDevice, the system can only recover on reset.
- *
- * @param[in] line_num   Line number of the failing ASSERT call.
- * @param[in] file_name  File name of the failing ASSERT call.
- */
-void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name)
-{
-    app_error_handler(DEAD_BEEF, line_num, p_file_name);
-}
 
 /**@brief Function for handling Peer Manager events.
  *
@@ -211,7 +187,8 @@ static void pm_evt_handler(pm_evt_t const *p_evt)
 
     case PM_EVT_PEERS_DELETE_SUCCEEDED:
     {
-        advertising_start();
+        err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+        APP_ERROR_CHECK(err_code);
     }
     break;
 
@@ -326,7 +303,7 @@ static void gap_params_init(void)
  */
 static void on_enble_device_id_update_evt(ble_enble_t *p_enble, uint16_t new_value)
 {
-    ble_enble_update_device_id(p_enble, new_value);
+    app_enble_on_device_id_update_evt(new_value);
 }
 
 /**@brief Function for handling the Enble Service events. 
@@ -340,7 +317,7 @@ static void on_enble_device_id_update_evt(ble_enble_t *p_enble, uint16_t new_val
  */
 static void on_enble_period_update_evt(ble_enble_t *p_enble, uint16_t new_value)
 {
-    ble_enble_update_period(p_enble, new_value);
+    app_enble_on_period_update_evt(new_value);
 }
 
 /**@brief Function for initializing services that will be used by the application.
@@ -407,52 +384,6 @@ static void conn_params_init(void)
 
     err_code = ble_conn_params_init(&cp_init);
     APP_ERROR_CHECK(err_code);
-}
-
-/**@brief Function for starting timers.
- */
-static void application_timers_start(void)
-{
-    /* YOUR_JOB: Start your timers. below is an example of how to start a timer.
-       uint32_t err_code;
-       err_code = app_timer_start(m_app_timer_id, TIMER_INTERVAL, NULL);
-       APP_ERROR_CHECK(err_code); */
-}
-
-/**@brief Function for putting the chip into sleep mode.
- *
- * @note This function will not return.
- */
-static void sleep_mode_enter(void)
-{
-    uint32_t err_code;
-
-    // Go to system-off mode (this function will not return; wakeup will cause a reset).
-    err_code = sd_power_system_off();
-    APP_ERROR_CHECK(err_code);
-}
-
-/**@brief Function for handling advertising events.
- *
- * @details This function will be called for advertising events which are passed to the application.
- *
- * @param[in] ble_adv_evt  Advertising event.
- */
-static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
-{
-    switch (ble_adv_evt)
-    {
-    case BLE_ADV_EVT_FAST:
-        NRF_LOG_INFO("Fast advertising\r\n");
-        break;
-
-    case BLE_ADV_EVT_IDLE:
-        sleep_mode_enter();
-        break;
-
-    default:
-        break;
-    }
 }
 
 /**@brief Function for handling the Application's BLE Stack events.
@@ -666,71 +597,11 @@ static void peer_manager_init(bool erase_bonds)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for initializing the Advertising functionality.
- */
-static void advertising_init(void)
-{
-    uint32_t err_code;
-    ble_advdata_t advdata;
-    ble_adv_modes_config_t options;
-
-    // Build advertising data struct to pass into @ref ble_advertising_init.
-    memset(&advdata, 0, sizeof(advdata));
-
-    advdata.name_type = BLE_ADVDATA_FULL_NAME;
-    advdata.include_appearance = true;
-    advdata.flags = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-    advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-    advdata.uuids_complete.p_uuids = m_adv_uuids;
-
-    memset(&options, 0, sizeof(options));
-    options.ble_adv_fast_enabled = true;
-    options.ble_adv_fast_interval = APP_ADV_INTERVAL;
-    options.ble_adv_fast_timeout = APP_ADV_TIMEOUT_IN_SECONDS;
-
-    err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
-    APP_ERROR_CHECK(err_code);
-}
-
 /**@brief Function for the Power manager.
  */
 static void power_manage(void)
 {
     uint32_t err_code = sd_app_evt_wait();
-
-    APP_ERROR_CHECK(err_code);
-}
-
-static void button_event_handler()
-{
-    led_blink(50);
-    bme280_start_measuring();
-}
-
-static void bme280_data_handler(const BME280MeasurementData *measurement_data)
-{
-    NRF_LOG_INFO("%u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity);
-}
-
-static void peripheral_init()
-{
-    uint32_t err_code;
-
-    err_code = led_init();
-    APP_ERROR_CHECK(err_code);
-
-    err_code = button_init(button_event_handler);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = bme280_init(bme280_data_handler);
-    APP_ERROR_CHECK(err_code);
-}
-
-/**@brief Function for starting advertising.
- */
-static void advertising_start(void)
-{
-    uint32_t err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
 
     APP_ERROR_CHECK(err_code);
 }
@@ -754,16 +625,12 @@ int main(void)
         NRF_LOG_INFO("Bonds erased!\r\n");
     }
     gap_params_init();
-    advertising_init();
     services_init();
     conn_params_init();
 
-    peripheral_init();
-
     // Start execution.
-    NRF_LOG_INFO("Template started\r\n");
-    application_timers_start();
-    err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+    NRF_LOG_INFO("ENBLE started\r\n");
+    err_code = app_enble_init(&m_enble_instance);
     APP_ERROR_CHECK(err_code);
 
     // Enter main loop.
