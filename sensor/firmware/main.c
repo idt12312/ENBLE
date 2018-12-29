@@ -399,6 +399,10 @@ static void on_ble_evt(ble_evt_t *p_ble_evt)
     case BLE_GAP_EVT_DISCONNECTED:
         NRF_LOG_INFO("Disconnected.\r\n");
         APP_ERROR_CHECK(err_code);
+        
+        err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+        APP_ERROR_CHECK(err_code);
+        
         break; // BLE_GAP_EVT_DISCONNECTED
 
     case BLE_GAP_EVT_CONNECTED:
