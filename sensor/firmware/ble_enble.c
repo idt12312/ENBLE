@@ -92,7 +92,7 @@ static void on_write(ble_enble_t *p_enble, ble_evt_t *p_ble_evt)
  *
  * @return NRF_SUCCESS on success, otherwise an error code.
  */
-static uint32_t add_char(ble_enble_t *p_enble, const char_config_t *char_config)
+static uint32_t add_char(ble_enble_t *p_enble, const char_config_t *char_config, const char *char_name)
 {
     ble_gatts_char_md_t char_md;
     ble_gatts_attr_t attr_char_value;
@@ -101,6 +101,9 @@ static uint32_t add_char(ble_enble_t *p_enble, const char_config_t *char_config)
 
     memset(&char_md, 0, sizeof(char_md));
     char_md.char_props = char_config->props;
+    char_md.p_char_user_desc = (uint8_t*)char_name;
+    char_md.char_user_desc_max_size = strlen(char_name);
+    char_md.char_user_desc_size = strlen(char_name);
 
     ble_uuid.type = p_enble->uuid_type;
     ble_uuid.uuid = char_config->uuid;
@@ -224,7 +227,7 @@ uint32_t ble_enble_init(ble_enble_t *p_enble, const ble_enble_init_t *p_enble_in
     char_config.uuid = UUID_DEVICE_ID;
     char_config.len = CHAR_VALUE_LEN_DEVICE_ID;
     char_config.props = char_props;
-    err_code = add_char(p_enble, &char_config);
+    err_code = add_char(p_enble, &char_config, "DevideID");
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -233,7 +236,7 @@ uint32_t ble_enble_init(ble_enble_t *p_enble, const ble_enble_init_t *p_enble_in
     char_config.p_handles = &p_enble->period_handles;
     char_config.uuid = UUID_PERIOD;
     char_config.len = CHAR_VALUE_LEN_PERIOD;
-    err_code = add_char(p_enble, &char_config);
+    err_code = add_char(p_enble, &char_config, "Period");
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -246,7 +249,7 @@ uint32_t ble_enble_init(ble_enble_t *p_enble, const ble_enble_init_t *p_enble_in
     char_config.uuid = UUID_BATTERY;
     char_config.len = CHAR_VALUE_LEN_BATTERY;
     char_config.props = char_props;
-    err_code = add_char(p_enble, &char_config);
+    err_code = add_char(p_enble, &char_config, "Battery");
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -256,7 +259,7 @@ uint32_t ble_enble_init(ble_enble_t *p_enble, const ble_enble_init_t *p_enble_in
     char_config.uuid = UUID_TEMPERATURE;
     char_config.len = CHAR_VALUE_LEN_TEMPERATURE;
     char_config.props = char_props;
-    err_code = add_char(p_enble, &char_config);
+    err_code = add_char(p_enble, &char_config, "Temperature");
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -266,7 +269,7 @@ uint32_t ble_enble_init(ble_enble_t *p_enble, const ble_enble_init_t *p_enble_in
     char_config.uuid = UUID_HUMIDITY;
     char_config.len = CHAR_VALUE_LEN_HUMIDITY;
     char_config.props = char_props;
-    err_code = add_char(p_enble, &char_config);
+    err_code = add_char(p_enble, &char_config, "Humidity");
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -276,7 +279,7 @@ uint32_t ble_enble_init(ble_enble_t *p_enble, const ble_enble_init_t *p_enble_in
     char_config.uuid = UUID_PRESSURE;
     char_config.len = CHAR_VALUE_LEN_PRESSURE;
     char_config.props = char_props;
-    err_code = add_char(p_enble, &char_config);
+    err_code = add_char(p_enble, &char_config, "Pressure");
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
