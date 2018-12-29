@@ -1,5 +1,7 @@
 #include "app_enble.h"
 
+#include <string.h>
+
 #include "ble_advdata.h"
 #include "ble_advertising.h"
 #include "ble_srv_common.h"
@@ -24,9 +26,12 @@ APP_TIMER_DEF(m_meaurement_timer_id);
 
 static uint16_t m_measurement_period;
 static uint16_t m_device_id;
+
 static ble_enble_t *p_enble_instance;
 
 static bool m_is_first_measure;
+
+static SensorMeasurementData m_measurement_data;
 
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
@@ -51,22 +56,21 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     }
 }
 
-static uint32_t advertising_update_data(const SensorMeasurementData *measurement_data)
+static uint32_t advertising_update_data()
 {
     uint32_t err_code;
     ble_advdata_t advdata;
     ble_adv_modes_config_t options;
 
     uint8_t serialized_measurement_data[8];
-    serialized_measurement_data[0] = (uint8_t)measurement_data->temperature;
-    serialized_measurement_data[1] = (uint8_t)(measurement_data->temperature >> 8);
-    serialized_measurement_data[2] = (uint8_t)measurement_data->humidity;
-    serialized_measurement_data[3] = (uint8_t)(measurement_data->humidity >> 8);
-    serialized_measurement_data[4] = (uint8_t)measurement_data->pressure;
-    serialized_measurement_data[5] = (uint8_t)(measurement_data->pressure >> 8);
-    serialized_measurement_data[6] = (uint8_t)measurement_data->battery;
-    serialized_measurement_data[7] = (uint8_t)(measurement_data->battery >> 8);
-    ;
+    serialized_measurement_data[0] = (uint8_t)m_measurement_data.temperature;
+    serialized_measurement_data[1] = (uint8_t)(m_measurement_data.temperature >> 8);
+    serialized_measurement_data[2] = (uint8_t)m_measurement_data.humidity;
+    serialized_measurement_data[3] = (uint8_t)(m_measurement_data.humidity >> 8);
+    serialized_measurement_data[4] = (uint8_t)m_measurement_data.pressure;
+    serialized_measurement_data[5] = (uint8_t)(m_measurement_data.pressure >> 8);
+    serialized_measurement_data[6] = (uint8_t)m_measurement_data.battery;
+    serialized_measurement_data[7] = (uint8_t)(m_measurement_data.battery >> 8);
 
     ble_advdata_manuf_data_t adv_manufacture_data;
     adv_manufacture_data.company_identifier = m_device_id;
@@ -103,9 +107,10 @@ static void sensor_data_handler(const SensorMeasurementData *measurement_data)
 
     led_blink(5);
 
+    memcpy(&m_measurement_data, measurement_data, sizeof(m_measurement_data));
     NRF_LOG_DEBUG("%d %u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity, measurement_data->battery);
 
-    err_code = advertising_update_data(measurement_data);
+    err_code = advertising_update_data();
     APP_ERROR_CHECK(err_code);
 
     if (m_is_first_measure)
@@ -159,9 +164,11 @@ void app_enble_on_device_id_update_evt(uint16_t new_value)
 {
     uint32_t err_code;
 
+    NRF_LOG_INFO("device id is updated %d\n", new_value);
+
     m_device_id = new_value;
 
-    err_code = ble_enble_update_device_id(p_enble_instance, new_value);
+    err_code = advertising_update_data();
     APP_ERROR_CHECK(err_code);
 }
 
@@ -169,10 +176,9 @@ void app_enble_on_period_update_evt(uint16_t new_value)
 {
     uint32_t err_code;
 
-    m_measurement_period = new_value;
+    NRF_LOG_INFO("period is updated %d\n", new_value);
 
-    err_code = ble_enble_update_period(p_enble_instance, new_value);
-    APP_ERROR_CHECK(err_code);
+    m_measurement_period = new_value;
 
     err_code = app_timer_stop(m_meaurement_timer_id);
     APP_ERROR_CHECK(err_code);
