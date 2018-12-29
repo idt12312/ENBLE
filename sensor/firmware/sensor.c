@@ -1,8 +1,15 @@
-#include "bme280.h"
+#include "sensor.h"
 
 #include "app_timer.h"
 #include "nrf_drv_spi.h"
 #include "nrf_gpio.h"
+#include "nrf_drv_adc.h"
+
+
+#define NRF_LOG_MODULE_NAME "SENSOR"
+#define NRF_LOG_LEVEL 3
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
 
 #define BME280_SPI_BUFFER_LEN 32
 #define BME280_SPI_CS_PIN 5
@@ -17,21 +24,46 @@
 #define BME280_RA_CALIB00 0x88 //26bytes
 #define BME280_RA_CALIB26 0xE1 //16bytes
 
-#define BME280_MEASUREMENT_WAIT_TIME 100
+#define SENSOR_MEASUREMENT_WAIT_TIME 100
 
 #define MARGE_16BIT(H, L) ((((uint16_t)H) << 8) | ((uint16_t)L))
 #define MARGE_20BIT(H, L, XL) ((((uint32_t)H) << 12) | (((uint32_t)L) << 4) | (((uint32_t)XL) >> 4))
+
+// ADC config
+// reference : internal 1.2V
+// input : VDD / 3
+static const nrf_drv_adc_channel_t adc_channel_config =
+    {{{.resolution = NRF_ADC_CONFIG_RES_10BIT,
+       .input = NRF_ADC_CONFIG_SCALING_SUPPLY_ONE_THIRD,
+       .reference = NRF_ADC_CONFIG_REF_VBG,
+       .ain = NRF_ADC_CONFIG_INPUT_DISABLED}}};
+
+static const nrf_drv_adc_config_t adc_config = NRF_DRV_ADC_DEFAULT_CONFIG;
+
+// SPI config
+static nrf_drv_spi_config_t spi_config =
+    {
+        .ss_pin = NRF_DRV_SPI_PIN_NOT_USED,
+        .sck_pin = BME280_SPI_SCK_PIN,
+        .mosi_pin = BME280_SPI_MOSI_PIN,
+        .miso_pin = BME280_SPI_MISO_PIN,
+        .irq_priority = SPI_DEFAULT_CONFIG_IRQ_PRIORITY,
+        .orc = 0xAA,
+        .frequency = NRF_DRV_SPI_FREQ_1M,
+        .mode = NRF_DRV_SPI_MODE_0,
+        .bit_order = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST};
 
 static const nrf_drv_spi_t m_bme280_spi_master = NRF_DRV_SPI_INSTANCE(0);
 static uint8_t m_bme280_spi_tx_buffer[BME280_SPI_BUFFER_LEN]; ///< SPI master TX buffer.
 static uint8_t m_bme280_spi_rx_buffer[BME280_SPI_BUFFER_LEN]; ///< SPI master RX buffer.
 static volatile bool m_bme280_spi_transfer_completed = false;
 
-static bme280_data_handler_t m_bme280_data_handler = NULL;
+static sensor_data_handler_t m_sensor_data_handler = NULL;
 static volatile bool m_bme280_receiving_measurement_data = false;
-static BME280MeasurementData m_bme280_measurment_data;
+static SensorMeasurementData m_sensor_measurment_data;
+static nrf_adc_value_t m_adc_result;
 
-APP_TIMER_DEF(m_bme280_measurement_wait_timer_id);
+APP_TIMER_DEF(m_sensor_measurement_wait_timer_id);
 
 // calibration parameters
 // details are in datesheet of BME280
@@ -58,6 +90,9 @@ static struct
     int32_t t_fine;
 } m_bme280_calib_data;
 
+
+static void bme280_spi_master_event_handler(nrf_drv_spi_evt_t const *p_event);
+
 static void bme280_spi_assert_cs()
 {
     nrf_gpio_pin_clear(BME280_SPI_CS_PIN);
@@ -77,6 +112,12 @@ static uint32_t bme280_spi_start_write_reg_byte(uint8_t reg_addr, uint8_t data)
 
     m_bme280_spi_transfer_completed = false;
 
+    err_code = nrf_drv_spi_init(&m_bme280_spi_master, &spi_config, bme280_spi_master_event_handler);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
     bme280_spi_assert_cs();
     err_code = nrf_drv_spi_transfer(&m_bme280_spi_master, m_bme280_spi_tx_buffer, 2, m_bme280_spi_rx_buffer, 2);
 
@@ -92,6 +133,12 @@ static uint32_t bme280_spi_start_read_reg_bytes(uint8_t reg_addr, uint8_t len)
 
     m_bme280_spi_transfer_completed = false;
 
+    err_code = nrf_drv_spi_init(&m_bme280_spi_master, &spi_config, bme280_spi_master_event_handler);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
     bme280_spi_assert_cs();
     err_code = nrf_drv_spi_transfer(&m_bme280_spi_master, m_bme280_spi_tx_buffer, len + 1, m_bme280_spi_rx_buffer, len + 1);
 
@@ -102,6 +149,7 @@ static void bme280_spi_wait_for_transfer_complete()
 {
     while (!m_bme280_spi_transfer_completed)
         ;
+    nrf_drv_spi_uninit(&m_bme280_spi_master);
 }
 
 // calibration code is cited from below url.
@@ -221,7 +269,7 @@ static uint32_t bme280_compensate_humidity(uint32_t uncomp_data)
     return humidity;
 }
 
-static void bme280_parse_sensor_data()
+static void parse_sensor_data()
 {
     uint32_t temperature_uncomp_data = MARGE_20BIT(m_bme280_spi_rx_buffer[4], m_bme280_spi_rx_buffer[5], m_bme280_spi_rx_buffer[6]);
     uint32_t pressure_uncomp_data = MARGE_20BIT(m_bme280_spi_rx_buffer[1], m_bme280_spi_rx_buffer[2], m_bme280_spi_rx_buffer[3]);
@@ -235,31 +283,37 @@ static void bme280_parse_sensor_data()
     uint32_t humidity_data = bme280_compensate_humidity(humidity_uncomp_data);
 
     // temperature in ℃ multiplied by 10
-    m_bme280_measurment_data.temperature = (uint16_t)(temperature_data / 10);
+    m_sensor_measurment_data.temperature = (uint16_t)(temperature_data / 10);
     // air pressure in hPa
-    m_bme280_measurment_data.pressure = (uint16_t)(pressure_data / 100);
+    m_sensor_measurment_data.pressure = (uint16_t)(pressure_data / 100);
     // humidity in % multiplied by 10
-    m_bme280_measurment_data.humidity = (uint16_t)(humidity_data / 100);
+    m_sensor_measurment_data.humidity = (uint16_t)(humidity_data / 100);
+    // battery voltage in mV
+    m_sensor_measurment_data.battery = (uint16_t)((uint32_t)m_adc_result * 3600 / 1024);
 }
 
-static void bme280_spi_master_event_handler(nrf_drv_spi_evt_t const *p_event)
+void bme280_spi_master_event_handler(nrf_drv_spi_evt_t const *p_event)
 {
     switch (p_event->type)
     {
     case NRF_DRV_SPI_EVENT_DONE:
         if (m_bme280_receiving_measurement_data)
         {
-            bme280_parse_sensor_data();
+            parse_sensor_data();
 
-            if (m_bme280_data_handler)
+            if (m_sensor_data_handler)
             {
-                m_bme280_data_handler(&m_bme280_measurment_data);
+                m_sensor_data_handler(&m_sensor_measurment_data);
             }
             m_bme280_receiving_measurement_data = false;
+
+            nrf_drv_adc_uninit();
         }
 
         m_bme280_spi_transfer_completed = true;
         bme280_spi_deassert_cs();
+
+        nrf_drv_spi_uninit(&m_bme280_spi_master);
         break;
 
     default:
@@ -363,7 +417,7 @@ static uint32_t bme280_config_measurement()
     return NRF_SUCCESS;
 }
 
-static void bme280_mesurement_wait_timer_handler()
+static void sensor_mesurement_wait_timer_handler()
 {
     uint32_t err_code;
 
@@ -373,32 +427,14 @@ static void bme280_mesurement_wait_timer_handler()
     APP_ERROR_CHECK(err_code);
 }
 
-uint32_t bme280_init(bme280_data_handler_t bme280_data_handler)
+uint32_t sensor_init(sensor_data_handler_t sensor_data_handler)
 {
     uint32_t err_code = NRF_SUCCESS;
 
-    m_bme280_data_handler = bme280_data_handler;
+    m_sensor_data_handler = sensor_data_handler;
 
     nrf_gpio_cfg_output(BME280_SPI_CS_PIN);
     nrf_gpio_pin_set(BME280_SPI_CS_PIN);
-
-    nrf_drv_spi_config_t spi_config =
-        {
-            .ss_pin = NRF_DRV_SPI_PIN_NOT_USED,
-            .sck_pin = BME280_SPI_SCK_PIN,
-            .mosi_pin = BME280_SPI_MOSI_PIN,
-            .miso_pin = BME280_SPI_MISO_PIN,
-            .irq_priority = SPI_DEFAULT_CONFIG_IRQ_PRIORITY,
-            .orc = 0xAA,
-            .frequency = NRF_DRV_SPI_FREQ_1M,
-            .mode = NRF_DRV_SPI_MODE_0,
-            .bit_order = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST};
-
-    err_code = nrf_drv_spi_init(&m_bme280_spi_master, &spi_config, bme280_spi_master_event_handler);
-    if (err_code != NRF_SUCCESS)
-    {
-        return err_code;
-    }
 
     // chech chip ID
     err_code = bme280_check_chip_id();
@@ -419,7 +455,7 @@ uint32_t bme280_init(bme280_data_handler_t bme280_data_handler)
         return err_code;
     }
 
-    err_code = app_timer_create(&m_bme280_measurement_wait_timer_id, APP_TIMER_MODE_SINGLE_SHOT, bme280_mesurement_wait_timer_handler);
+    err_code = app_timer_create(&m_sensor_measurement_wait_timer_id, APP_TIMER_MODE_SINGLE_SHOT, sensor_mesurement_wait_timer_handler);
     if (err_code != NRF_SUCCESS)
     {
         return err_code;
@@ -428,9 +464,28 @@ uint32_t bme280_init(bme280_data_handler_t bme280_data_handler)
     return NRF_SUCCESS;
 }
 
-uint32_t bme280_start_measuring()
+static void adc_evt_handler(nrf_drv_adc_evt_t const * p_event)
+{
+    if (p_event->type == NRF_DRV_ADC_EVT_DONE)
+    {
+        NRF_LOG_DEBUG("ADC %u %u\n", p_event->data.done.size, p_event->data.done.p_buffer[0]);
+    }
+}
+
+uint32_t sensor_start_measuring()
 {
     uint32_t err_code;
+
+    err_code = nrf_drv_adc_init(&adc_config, adc_evt_handler);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_adc_channel_enable((nrf_drv_adc_channel_t *const)&adc_channel_config);
+
+    err_code = nrf_drv_adc_buffer_convert(&m_adc_result, 1);
+    APP_ERROR_CHECK(err_code);
+
+    // start adc sample
+    nrf_drv_adc_sample();
 
     // [1:0] mode=01 : start force mode
     // [4:2] osrs_p=1 : pressure oversample x1
@@ -441,7 +496,7 @@ uint32_t bme280_start_measuring()
         return err_code;
     }
 
-    err_code = app_timer_start(m_bme280_measurement_wait_timer_id, APP_TIMER_TICKS(BME280_MEASUREMENT_WAIT_TIME, 0), NULL);
+    err_code = app_timer_start(m_sensor_measurement_wait_timer_id, APP_TIMER_TICKS(SENSOR_MEASUREMENT_WAIT_TIME, 0), NULL);
     if (err_code != NRF_SUCCESS)
     {
         return err_code;

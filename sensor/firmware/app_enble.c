@@ -5,11 +5,12 @@
 #include "ble_srv_common.h"
 
 #include "led_button.h"
-#include "bme280.h"
+#include "sensor.h"
 
 #include "app_timer.h"
 
 #define NRF_LOG_MODULE_NAME "APP_ENBLE"
+#define NRF_LOG_LEVEL 4
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 
@@ -50,7 +51,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     }
 }
 
-static uint32_t advertising_update_data(const BME280MeasurementData *measurement_data)
+static uint32_t advertising_update_data(const SensorMeasurementData *measurement_data)
 {
     uint32_t err_code;
     ble_advdata_t advdata;
@@ -63,8 +64,9 @@ static uint32_t advertising_update_data(const BME280MeasurementData *measurement
     serialized_measurement_data[3] = (uint8_t)(measurement_data->humidity >> 8);
     serialized_measurement_data[4] = (uint8_t)measurement_data->pressure;
     serialized_measurement_data[5] = (uint8_t)(measurement_data->pressure >> 8);
-    serialized_measurement_data[6] = 0;
-    serialized_measurement_data[7] = 0;
+    serialized_measurement_data[6] = (uint8_t)measurement_data->battery;
+    serialized_measurement_data[7] = (uint8_t)(measurement_data->battery >> 8);
+    ;
 
     ble_advdata_manuf_data_t adv_manufacture_data;
     adv_manufacture_data.company_identifier = m_device_id;
@@ -95,13 +97,13 @@ static void button_event_handler()
     led_blink(100);
 }
 
-static void bme280_data_handler(const BME280MeasurementData *measurement_data)
+static void sensor_data_handler(const SensorMeasurementData *measurement_data)
 {
     uint32_t err_code;
 
     led_blink(5);
 
-    NRF_LOG_DEBUG("%u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity);
+    NRF_LOG_DEBUG("%u %u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity, measurement_data->battery);
 
     err_code = advertising_update_data(measurement_data);
     APP_ERROR_CHECK(err_code);
@@ -123,13 +125,13 @@ static void bme280_data_handler(const BME280MeasurementData *measurement_data)
     err_code = ble_enble_update_pressure(p_enble_instance, measurement_data->pressure);
     APP_ERROR_CHECK(err_code);
 
-    err_code = ble_enble_update_battery(p_enble_instance, 0);
+    err_code = ble_enble_update_battery(p_enble_instance, measurement_data->battery);
     APP_ERROR_CHECK(err_code);
 }
 
 static void measurement_timer_handler()
 {
-    uint32_t err_code = bme280_start_measuring();
+    uint32_t err_code = sensor_start_measuring();
     APP_ERROR_CHECK(err_code);
 }
 
@@ -149,7 +151,7 @@ static uint32_t peripheral_init()
         return err_code;
     }
 
-    err_code = bme280_init(bme280_data_handler);
+    err_code = sensor_init(sensor_data_handler);
     return err_code;
 }
 
