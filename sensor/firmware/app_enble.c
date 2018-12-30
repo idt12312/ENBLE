@@ -10,6 +10,7 @@
 #include "sensor.h"
 
 #include "app_timer.h"
+#include "fds.h"
 
 #define NRF_LOG_MODULE_NAME "APP_ENBLE"
 #define NRF_LOG_LEVEL 4
@@ -19,19 +20,124 @@
 #define APP_ADV_INTERVAL 3200          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 2.0 s). */
 #define APP_ADV_TIMEOUT_IN_SECONDS 600 /**< The advertising timeout in units of seconds. */
 
-// YOUR_JOB: Use UUIDs for service(s) used in your application.
+#define DEFAULT_DEVICE_ID 0xffff
+#define DEFAULT_MEASUREMNT_PERIOD 10
+
 static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}}; /**< Universally unique service identifiers. */
 
 APP_TIMER_DEF(m_meaurement_timer_id);
 
 static uint16_t m_measurement_period;
 static uint16_t m_device_id;
+static SensorMeasurementData m_measurement_data;
 
 static ble_enble_t *p_enble_instance;
 
 static bool m_is_first_measure;
 
-static SensorMeasurementData m_measurement_data;
+// FDS file id and record key for backup data
+#define FDS_BACKUP_FILE_ID 0x1000
+#define FDS_BACKUP_RECORD_KEY 0x2000
+
+static fds_record_desc_t m_enble_fds_record_desc;
+static uint32_t m_fds_backup_data;
+
+static uint32_t save_nonvolatile_data()
+{
+    uint32_t err_code;
+
+    m_fds_backup_data = ((uint32_t)m_measurement_period << 16) | (uint32_t)m_device_id;
+
+    fds_record_chunk_t fds_record_chunk;
+    memset(&fds_record_chunk, 0, sizeof(fds_record_chunk));
+    fds_record_chunk.p_data = &m_fds_backup_data;
+    fds_record_chunk.length_words = 1;
+
+    fds_record_t fds_record;
+    memset(&fds_record, 0, sizeof(fds_record));
+    fds_record.file_id = FDS_BACKUP_FILE_ID;
+    fds_record.key = FDS_BACKUP_RECORD_KEY;
+    fds_record.data.p_chunks = &fds_record_chunk;
+    fds_record.data.num_chunks = 1;
+
+    fds_find_token_t fds_find_token;
+    memset(&fds_find_token, 0, sizeof(fds_find_token));
+
+    uint32_t find_result = fds_record_find(FDS_BACKUP_FILE_ID, FDS_BACKUP_RECORD_KEY, &m_enble_fds_record_desc, &fds_find_token);
+
+    // If data have already existed, write record, otherwise update
+    if (find_result == FDS_SUCCESS)
+    {
+        err_code = fds_record_update(&m_enble_fds_record_desc, &fds_record);
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+    }
+    else
+    {
+        err_code = fds_record_write(&m_enble_fds_record_desc, &fds_record);
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+    }
+
+    return NRF_SUCCESS;
+}
+
+static uint32_t load_nonvolatile_data()
+{
+    uint32_t err_code;
+
+    fds_flash_record_t fds_flash_record;
+    memset(&fds_flash_record, 0, sizeof(fds_flash_record));
+
+    fds_find_token_t fds_find_token;
+    memset(&fds_find_token, 0, sizeof(fds_find_token));
+
+    uint32_t find_result = fds_record_find(FDS_BACKUP_FILE_ID, FDS_BACKUP_RECORD_KEY, &m_enble_fds_record_desc, &fds_find_token);
+
+    if (find_result == FDS_SUCCESS)
+    {
+        err_code = fds_record_open(&m_enble_fds_record_desc, &fds_flash_record);
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+
+        memcpy(&m_fds_backup_data, fds_flash_record.p_data, sizeof(m_fds_backup_data));
+
+        m_device_id = (uint16_t)m_fds_backup_data;
+        m_measurement_period = (uint16_t)(m_fds_backup_data >> 16);
+
+        NRF_LOG_INFO("nonvolatile data is available\n");
+        NRF_LOG_INFO("loaded device_id %u, measurment period %u\n", m_device_id, m_measurement_period);
+
+        err_code = fds_record_close(&m_enble_fds_record_desc);
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+    }
+    else
+    {
+        m_measurement_period = DEFAULT_MEASUREMNT_PERIOD;
+        m_device_id = DEFAULT_DEVICE_ID;
+
+        NRF_LOG_INFO("nonvolatile data is not available\n");
+        NRF_LOG_INFO("default value is configured\n");
+        NRF_LOG_INFO("device_id %u, measurment period %u\n", m_device_id, m_measurement_period);
+
+        err_code = save_nonvolatile_data();
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+    }
+
+    return NRF_SUCCESS;
+}
 
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
@@ -170,6 +276,8 @@ void app_enble_on_device_id_update_evt(uint16_t new_value)
 
     err_code = advertising_update_data();
     APP_ERROR_CHECK(err_code);
+
+    save_nonvolatile_data();
 }
 
 void app_enble_on_period_update_evt(uint16_t new_value)
@@ -185,6 +293,8 @@ void app_enble_on_period_update_evt(uint16_t new_value)
 
     err_code = app_timer_start(m_meaurement_timer_id, APP_TIMER_TICKS(m_measurement_period * 1000, 0), NULL);
     APP_ERROR_CHECK(err_code);
+
+    save_nonvolatile_data();
 }
 
 uint32_t app_enble_init(ble_enble_t *m_enble)
@@ -195,9 +305,7 @@ uint32_t app_enble_init(ble_enble_t *m_enble)
 
     m_is_first_measure = true;
 
-    // TODO: Load bellow data from non volatile memory
-    m_device_id = 1;
-    m_measurement_period = 5;
+    load_nonvolatile_data();
 
     err_code = ble_enble_update_device_id(p_enble_instance, m_device_id);
     if (err_code != NRF_SUCCESS)
