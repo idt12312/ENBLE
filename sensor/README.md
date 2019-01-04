@@ -1,5 +1,27 @@
 # ENBLE sensor 
 
+## BLE Advertise
+
+| Parameter          | Value                 |
+|--------------------|-----------------------|
+| Local Name         | "ENBLE"               |
+| Advertise Interval | 2000ms                |
+| Manufacturer data  | 10 bytes binary data  |
+
+Manufacturer data has DeviceID and measurement results of sensors.  
+Data format is as shown below. 
+
+| Position | Contents    | DataType |
+|----------|-------------|----------|
+| byte 0-1 | DeviceID    | uint16   |
+| byte 2-3 | Battery     | uint16   |
+| byte 4-5 | Temperature | int16    |
+| byte 6-7 | Humidity    | uint16   |
+| byte 8-9 | Pressure    | uint16   |
+
+Each data is contained in **little endian 16bit integer**.  
+Means of above data are same as ones in bellow characteristics.
+
 
 ## BLE Services
 
@@ -9,7 +31,7 @@
 | DeviceID      | Characteristic | Read, Write | bff20011-378e-4955-89d6-25948b941062 | uint16   |
 |  Period       | Characteristic | Read, Write | bff20012-378e-4955-89d6-25948b941062 | uint16   |
 | Battery       | Characteristic | Read        | bff20021-378e-4955-89d6-25948b941062 | uint16   |
-| Temperature   | Characteristic | Read        | bff20022-378e-4955-89d6-25948b941062 | uint16   |
+| Temperature   | Characteristic | Read        | bff20022-378e-4955-89d6-25948b941062 | int16    |
 | Humidity      | Characteristic | Read        | bff20023-378e-4955-89d6-25948b941062 | uint16   |
 | Pressure      | Characteristic | Read        | bff20024-378e-4955-89d6-25948b941062 | uint16   |
 
@@ -30,16 +52,17 @@ This characteristic indicates battery voltage in % **multiplied by 100**.
 
 ### Temperature
 This characteristic indicates temperature in ℃ **multiplied by 10**. 
+A negative value is represented in two's complement number. 
 
 ### Humidity
 This characteristic indicates humidity in % **multiplied by 10**. 
 
-### AirPressure
+### Pressure
 This characteristic indicates air pressure in hPa. 
 
 
 
-## Set up for build
+## Setup for build
 1. Download Nordic SDK ver 12.3.0
 2. Place Nordic SDK in firmware/lib  
 ex) The structure of directory must be is following.   
