@@ -169,14 +169,14 @@ static uint32_t advertising_update_data()
     ble_adv_modes_config_t options;
 
     uint8_t serialized_measurement_data[8];
-    serialized_measurement_data[0] = (uint8_t)m_measurement_data.temperature;
-    serialized_measurement_data[1] = (uint8_t)(m_measurement_data.temperature >> 8);
-    serialized_measurement_data[2] = (uint8_t)m_measurement_data.humidity;
-    serialized_measurement_data[3] = (uint8_t)(m_measurement_data.humidity >> 8);
-    serialized_measurement_data[4] = (uint8_t)m_measurement_data.pressure;
-    serialized_measurement_data[5] = (uint8_t)(m_measurement_data.pressure >> 8);
-    serialized_measurement_data[6] = (uint8_t)m_measurement_data.battery;
-    serialized_measurement_data[7] = (uint8_t)(m_measurement_data.battery >> 8);
+    serialized_measurement_data[0] = (uint8_t)m_measurement_data.battery;
+    serialized_measurement_data[1] = (uint8_t)(m_measurement_data.battery >> 8);
+    serialized_measurement_data[2] = (uint8_t)m_measurement_data.temperature;
+    serialized_measurement_data[3] = (uint8_t)(m_measurement_data.temperature >> 8);
+    serialized_measurement_data[4] = (uint8_t)m_measurement_data.humidity;
+    serialized_measurement_data[5] = (uint8_t)(m_measurement_data.humidity >> 8);
+    serialized_measurement_data[6] = (uint8_t)m_measurement_data.pressure;
+    serialized_measurement_data[7] = (uint8_t)(m_measurement_data.pressure >> 8);
 
     ble_advdata_manuf_data_t adv_manufacture_data;
     adv_manufacture_data.company_identifier = m_device_id;
