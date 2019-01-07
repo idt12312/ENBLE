@@ -125,6 +125,21 @@ static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the curr
 static ble_enble_t m_enble_instance;
 
 
+void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
+{
+	error_info_t *error_info = (error_info_t*)info;
+	printf("[APP_ERROR] code %lu at %s:%u\n",
+			error_info->err_code,
+			error_info->p_file_name,
+			error_info->line_num);
+}
+
+
+void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
+{
+    app_error_handler(DEAD_BEEF, line_num, p_file_name);
+}
+
 
 /**@brief Function for handling Peer Manager events.
  *
