@@ -572,23 +572,14 @@ static void ble_stack_init(void)
 }
 
 /**@brief Function for the Peer Manager initialization.
- *
- * @param[in] erase_bonds  Indicates whether bonding information should be cleared from
- *                         persistent storage during initialization of the Peer Manager.
  */
-static void peer_manager_init(bool erase_bonds)
+static void peer_manager_init()
 {
     ble_gap_sec_params_t sec_param;
     ret_code_t err_code;
 
     err_code = pm_init();
     APP_ERROR_CHECK(err_code);
-
-    if (erase_bonds)
-    {
-        err_code = pm_peers_delete();
-        APP_ERROR_CHECK(err_code);
-    }
 
     memset(&sec_param, 0, sizeof(ble_gap_sec_params_t));
 
@@ -627,7 +618,6 @@ static void power_manage(void)
 int main(void)
 {
     uint32_t err_code;
-    bool erase_bonds = true;
 
     // Initialize.
     err_code = NRF_LOG_INIT(NULL);
@@ -635,11 +625,9 @@ int main(void)
 
     timers_init();
     ble_stack_init();
-    peer_manager_init(erase_bonds);
-    if (erase_bonds == true)
-    {
-        NRF_LOG_INFO("Bonds erased!\r\n");
-    }
+
+    peer_manager_init();
+
     gap_params_init();
     services_init();
     conn_params_init();

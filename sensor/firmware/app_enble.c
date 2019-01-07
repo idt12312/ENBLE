@@ -11,6 +11,7 @@
 
 #include "app_timer.h"
 #include "fds.h"
+#include "peer_manager.h"
 
 #define NRF_LOG_MODULE_NAME "APP_ENBLE"
 #define NRF_LOG_LEVEL 4
@@ -89,6 +90,17 @@ static uint32_t save_nonvolatile_data()
     return NRF_SUCCESS;
 }
 
+static uint32_t set_default_nonvolatile_data()
+{
+    m_measurement_period = DEFAULT_MEASUREMNT_PERIOD;
+    m_device_id = DEFAULT_DEVICE_ID;
+
+    NRF_LOG_INFO("default value is configured\n");
+    NRF_LOG_INFO("device_id %u, measurment period %u\n", m_device_id, m_measurement_period);
+
+    return save_nonvolatile_data();
+}
+
 static uint32_t load_nonvolatile_data()
 {
     uint32_t err_code;
@@ -123,23 +135,15 @@ static uint32_t load_nonvolatile_data()
             return err_code;
         }
     }
-    else
+    else if (find_result == FDS_ERR_NOT_FOUND)
     {
-        m_measurement_period = DEFAULT_MEASUREMNT_PERIOD;
-        m_device_id = DEFAULT_DEVICE_ID;
-
         NRF_LOG_INFO("nonvolatile data is not available\n");
-        NRF_LOG_INFO("default value is configured\n");
-        NRF_LOG_INFO("device_id %u, measurment period %u\n", m_device_id, m_measurement_period);
+        set_default_nonvolatile_data();
 
-        err_code = save_nonvolatile_data();
-        if (err_code != NRF_SUCCESS)
-        {
-            return err_code;
-        }
+        return NRF_SUCCESS;
     }
 
-    return NRF_SUCCESS;
+    return find_result;
 }
 
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
@@ -355,6 +359,19 @@ uint32_t app_enble_init(ble_enble_t *m_enble)
         return err_code;
     }
 
+    if (button_is_pushed())
+    {
+        err_code = set_default_nonvolatile_data();
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+        err_code = pm_peers_delete();
+        if (err_code != NRF_SUCCESS)
+        {
+            return err_code;
+        }
+    }
     err_code = app_timer_create(&m_meaurement_timer_id, APP_TIMER_MODE_REPEATED, measurement_timer_handler);
     if (err_code != NRF_SUCCESS)
     {
