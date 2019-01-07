@@ -187,7 +187,7 @@ static void pm_evt_handler(pm_evt_t const *p_evt)
 
     case PM_EVT_PEERS_DELETE_SUCCEEDED:
     {
-        err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+        err_code = ble_advertising_start(BLE_ADV_MODE_SLOW);
         APP_ERROR_CHECK(err_code);
     }
     break;
@@ -400,7 +400,7 @@ static void on_ble_evt(ble_evt_t *p_ble_evt)
         NRF_LOG_INFO("Disconnected.\r\n");
         APP_ERROR_CHECK(err_code);
         
-        err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+        err_code = ble_advertising_start(BLE_ADV_MODE_SLOW);
         APP_ERROR_CHECK(err_code);
         
         break; // BLE_GAP_EVT_DISCONNECTED

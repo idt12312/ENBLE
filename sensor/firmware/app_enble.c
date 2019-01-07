@@ -17,8 +17,10 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 
-#define APP_ADV_INTERVAL 3200          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 2.0 s). */
-#define APP_ADV_TIMEOUT_IN_SECONDS 600 /**< The advertising timeout in units of seconds. */
+#define APP_ADV_SLOW_TIMEOUT_IN_SECONDS 0  /**< The advertising timeout in units of seconds. 0 means continuously advertising without timeout. */
+#define APP_ADV_SLOW_INTERVAL 3200         /**< The advertising interval (in units of 0.625 ms. This value corresponds to 2.0 s). */
+#define APP_ADV_FAST_TIMEOUT_IN_SECONDS 10 /**< The advertising timeout in units of seconds. */
+#define APP_ADV_FAST_INTERVAL 160          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 0.1 s). */
 
 #define DEFAULT_DEVICE_ID 0xffff
 #define DEFAULT_MEASUREMNT_PERIOD 10
@@ -34,6 +36,7 @@ static SensorMeasurementData m_measurement_data;
 static ble_enble_t *p_enble_instance;
 
 static bool m_is_first_measure;
+static bool m_is_measuring;
 
 // FDS file id and record key for backup data
 #define FDS_BACKUP_FILE_ID 0x1000
@@ -145,14 +148,15 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     switch (ble_adv_evt)
     {
     case BLE_ADV_EVT_FAST:
-        NRF_LOG_INFO("Fast advertising\r\n");
+        NRF_LOG_INFO("start fast advertising\n");
         break;
 
     case BLE_ADV_EVT_SLOW:
-        NRF_LOG_INFO("Slow advertising\r\n");
+        NRF_LOG_INFO("start slow advertising\n");
         break;
 
     case BLE_ADV_EVT_IDLE:
+        NRF_LOG_INFO("advertising mode is idle\n");
         err_code = ble_advertising_start(BLE_ADV_MODE_SLOW);
         APP_ERROR_CHECK(err_code);
         break;
@@ -195,8 +199,11 @@ static uint32_t advertising_update_data()
 
     memset(&options, 0, sizeof(options));
     options.ble_adv_slow_enabled = true;
-    options.ble_adv_slow_interval = APP_ADV_INTERVAL;
-    options.ble_adv_slow_timeout = APP_ADV_TIMEOUT_IN_SECONDS;
+    options.ble_adv_slow_interval = APP_ADV_SLOW_INTERVAL;
+    options.ble_adv_slow_timeout = APP_ADV_SLOW_TIMEOUT_IN_SECONDS;
+    options.ble_adv_fast_enabled = true;
+    options.ble_adv_fast_interval = APP_ADV_FAST_INTERVAL;
+    options.ble_adv_fast_timeout = APP_ADV_FAST_TIMEOUT_IN_SECONDS;
 
     err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
     return err_code;
@@ -204,16 +211,34 @@ static uint32_t advertising_update_data()
 
 static void button_event_handler()
 {
+    uint32_t err_code;
+
     led_blink(100);
+
+    err_code = app_timer_stop(m_meaurement_timer_id);
+    APP_ERROR_CHECK(err_code);
+
+    if (!m_is_measuring && p_enble_instance->conn_handle == BLE_CONN_HANDLE_INVALID && !m_is_first_measure)
+    {
+        err_code = sd_ble_gap_adv_stop();
+        APP_ERROR_CHECK(err_code);
+
+        err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+        APP_ERROR_CHECK(err_code);
+    }
+
+    err_code = app_timer_start(m_meaurement_timer_id, APP_TIMER_TICKS(m_measurement_period * 1000, 0), NULL);
+    APP_ERROR_CHECK(err_code);
 }
 
 static void sensor_data_handler(const SensorMeasurementData *measurement_data)
 {
     uint32_t err_code;
 
-    led_blink(5);
+    led_blink(10);
 
     memcpy(&m_measurement_data, measurement_data, sizeof(m_measurement_data));
+    NRF_LOG_INFO("measurement data is updated\n");
     NRF_LOG_DEBUG("%d %u %u %u\n", measurement_data->temperature, measurement_data->pressure, measurement_data->humidity, measurement_data->battery);
 
     err_code = advertising_update_data();
@@ -238,10 +263,14 @@ static void sensor_data_handler(const SensorMeasurementData *measurement_data)
 
     err_code = ble_enble_update_battery(p_enble_instance, measurement_data->battery);
     APP_ERROR_CHECK(err_code);
+
+    m_is_measuring = false;
 }
 
 static void measurement_timer_handler()
 {
+    m_is_measuring = true;
+
     uint32_t err_code = sensor_start_measuring();
     APP_ERROR_CHECK(err_code);
 }
@@ -304,6 +333,7 @@ uint32_t app_enble_init(ble_enble_t *m_enble)
     p_enble_instance = m_enble;
 
     m_is_first_measure = true;
+    m_is_measuring = false;
 
     load_nonvolatile_data();
 
