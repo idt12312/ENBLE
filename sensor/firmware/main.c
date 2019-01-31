@@ -81,6 +81,7 @@
 #include "app_enble.h"
 
 #define NRF_LOG_MODULE_NAME "MAIN"
+#define NRF_LOG_LEVEL 0
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 

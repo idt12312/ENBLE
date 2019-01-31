@@ -7,7 +7,7 @@
 
 
 #define NRF_LOG_MODULE_NAME "SENSOR"
-#define NRF_LOG_LEVEL 3
+#define NRF_LOG_LEVEL 0
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 

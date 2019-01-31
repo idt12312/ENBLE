@@ -14,7 +14,7 @@
 #include "peer_manager.h"
 
 #define NRF_LOG_MODULE_NAME "APP_ENBLE"
-#define NRF_LOG_LEVEL 4
+#define NRF_LOG_LEVEL 0
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 
@@ -239,7 +239,9 @@ static void sensor_data_handler(const SensorMeasurementData *measurement_data)
 {
     uint32_t err_code;
 
+#ifdef DEBUG
     led_blink(10);
+#endif
 
     memcpy(&m_measurement_data, measurement_data, sizeof(m_measurement_data));
     NRF_LOG_INFO("measurement data is updated\n");
