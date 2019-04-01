@@ -25,6 +25,7 @@
 #define BME280_RA_CALIB26 0xE1 //16bytes
 
 #define SENSOR_MEASUREMENT_WAIT_TIME 100
+#define BATTERY_ADC_RESULT_AVERAGE_CNT   10
 
 #define MARGE_16BIT(H, L) ((((uint16_t)H) << 8) | ((uint16_t)L))
 #define MARGE_20BIT(H, L, XL) ((((uint32_t)H) << 12) | (((uint32_t)L) << 4) | (((uint32_t)XL) >> 4))
@@ -61,7 +62,13 @@ static volatile bool m_bme280_spi_transfer_completed = false;
 static sensor_data_handler_t m_sensor_data_handler = NULL;
 static volatile bool m_bme280_receiving_measurement_data = false;
 static SensorMeasurementData m_sensor_measurment_data;
-static nrf_adc_value_t m_adc_result;
+
+// to calc moving average of battery adc result, use the following buffer and index as circular buffer
+static uint32_t m_battery_adc_result_buffer[BATTERY_ADC_RESULT_AVERAGE_CNT];
+static uint8_t m_battery_adc_result_buffer_index;
+static bool m_is_first_measurement;
+static nrf_adc_value_t m_battery_adc_result;
+
 
 APP_TIMER_DEF(m_sensor_measurement_wait_timer_id);
 
@@ -289,7 +296,13 @@ static void parse_sensor_data()
     // humidity in % multiplied by 10
     m_sensor_measurment_data.humidity = (uint16_t)(humidity_data / 100);
     // battery voltage in mV
-    m_sensor_measurment_data.battery = (uint16_t)((uint32_t)m_adc_result * 3600 / 1024);
+    uint32_t adc_result_averaged = 0;
+    for (uint8_t i=0;i<BATTERY_ADC_RESULT_AVERAGE_CNT;i++)
+    {
+        adc_result_averaged += (uint32_t)m_battery_adc_result_buffer[i];
+    }
+    adc_result_averaged = adc_result_averaged / BATTERY_ADC_RESULT_AVERAGE_CNT;
+    m_sensor_measurment_data.battery = (uint16_t)((uint32_t)adc_result_averaged * 3600 / 1024);
 }
 
 void bme280_spi_master_event_handler(nrf_drv_spi_evt_t const *p_event)
@@ -432,6 +445,9 @@ uint32_t sensor_init(sensor_data_handler_t sensor_data_handler)
     uint32_t err_code = NRF_SUCCESS;
 
     m_sensor_data_handler = sensor_data_handler;
+    
+    m_battery_adc_result_buffer_index = 0;
+    m_is_first_measurement = true;
 
     nrf_gpio_cfg_output(BME280_SPI_CS_PIN);
     nrf_gpio_pin_set(BME280_SPI_CS_PIN);
@@ -468,7 +484,22 @@ static void adc_evt_handler(nrf_drv_adc_evt_t const * p_event)
 {
     if (p_event->type == NRF_DRV_ADC_EVT_DONE)
     {
-        NRF_LOG_DEBUG("ADC %u %u\n", p_event->data.done.size, p_event->data.done.p_buffer[0]);
+        NRF_LOG_DEBUG("ADC %u :%u\n", p_event->data.done.size, m_battery_adc_result);
+
+        if (m_is_first_measurement)
+        {
+            m_is_first_measurement = false;
+
+            for (uint8_t i=0;i<BATTERY_ADC_RESULT_AVERAGE_CNT;i++)
+            {
+                m_battery_adc_result_buffer[i] = m_battery_adc_result;
+            }
+        }
+        else
+        {
+            m_battery_adc_result_buffer_index = (m_battery_adc_result_buffer_index + 1) % BATTERY_ADC_RESULT_AVERAGE_CNT;
+            m_battery_adc_result_buffer[m_battery_adc_result_buffer_index] = m_battery_adc_result;
+        }
     }
 }
 
@@ -481,7 +512,7 @@ uint32_t sensor_start_measuring()
 
     nrf_drv_adc_channel_enable((nrf_drv_adc_channel_t *const)&adc_channel_config);
 
-    err_code = nrf_drv_adc_buffer_convert(&m_adc_result, 1);
+    err_code = nrf_drv_adc_buffer_convert(&m_battery_adc_result, 1);
     APP_ERROR_CHECK(err_code);
 
     // start adc sample

@@ -48,7 +48,7 @@ This period is 16 bit unsigned integer in seconds.
 The value of this characteristic is stored in nonvolatile memory. 
 
 ### Battery
-This characteristic indicates battery voltage in % **multiplied by 100**. 
+This characteristic indicates battery voltage of the device in mV. 
 
 ### Temperature
 This characteristic indicates temperature in ℃ **multiplied by 10**. 
