@@ -15,6 +15,7 @@ typedef void (*button_evt_handler_t)();
 
 uint32_t button_init(button_evt_handler_t _button_evt_handler);
 bool button_is_pushed();
-
+uint32_t button_interrupt_enable();
+uint32_t button_interrupt_disable();
 
 #endif

@@ -66,7 +66,6 @@ uint32_t button_init(button_evt_handler_t _button_evt_handler)
     m_button_evt_handler = _button_evt_handler;
 
     err_code = app_button_init(&button_config, 1, BUTTON_DETECT_DELAY);
-    app_button_enable();
 
     return err_code;
 }
@@ -74,4 +73,14 @@ uint32_t button_init(button_evt_handler_t _button_evt_handler)
 bool button_is_pushed()
 {
     return app_button_is_pushed(0);
+}
+
+uint32_t button_interrupt_enable()
+{
+    return app_button_enable();
+}
+
+uint32_t button_interrupt_disable()
+{
+    return app_button_disable();
 }

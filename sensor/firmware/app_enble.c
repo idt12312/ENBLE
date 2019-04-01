@@ -24,7 +24,8 @@
 #define APP_ADV_FAST_INTERVAL 160          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 0.1 s). */
 
 #define DEFAULT_DEVICE_ID 0xffff
-#define DEFAULT_MEASUREMNT_PERIOD 10
+#define DEFAULT_MEASUREMNT_PERIOD 60    // s
+#define FIRSTTIME_MEASUREMENT_DELAY 1   // s
 
 static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}}; /**< Universally unique service identifiers. */
 
@@ -213,6 +214,7 @@ static uint32_t advertising_update_data()
     return err_code;
 }
 
+// This function is not called while a measurment is running and before the first time measurement is done.
 static void button_event_handler()
 {
     uint32_t err_code;
@@ -222,7 +224,7 @@ static void button_event_handler()
     err_code = app_timer_stop(m_meaurement_timer_id);
     APP_ERROR_CHECK(err_code);
 
-    if (!m_is_measuring && p_enble_instance->conn_handle == BLE_CONN_HANDLE_INVALID && !m_is_first_measure)
+    if (p_enble_instance->conn_handle == BLE_CONN_HANDLE_INVALID)
     {
         err_code = sd_ble_gap_adv_stop();
         APP_ERROR_CHECK(err_code);
@@ -251,7 +253,13 @@ static void sensor_data_handler(const SensorMeasurementData *measurement_data)
     APP_ERROR_CHECK(err_code);
 
     if (m_is_first_measure)
-    {
+    {    
+        err_code = app_timer_stop(m_meaurement_timer_id);
+        APP_ERROR_CHECK(err_code);
+
+        err_code = app_timer_start(m_meaurement_timer_id, APP_TIMER_TICKS(m_measurement_period * 1000, 0), NULL);
+        APP_ERROR_CHECK(err_code);
+        
         err_code = ble_advertising_start(BLE_ADV_MODE_SLOW);
         APP_ERROR_CHECK(err_code);
 
@@ -270,14 +278,22 @@ static void sensor_data_handler(const SensorMeasurementData *measurement_data)
     err_code = ble_enble_update_battery(p_enble_instance, measurement_data->battery);
     APP_ERROR_CHECK(err_code);
 
-    m_is_measuring = false;
+    m_is_measuring = false;    
+    
+    err_code = button_interrupt_enable();
+    APP_ERROR_CHECK(err_code);
 }
 
 static void measurement_timer_handler()
 {
+    uint32_t err_code;
+
+    err_code = button_interrupt_disable();
+    APP_ERROR_CHECK(err_code);
+
     m_is_measuring = true;
 
-    uint32_t err_code = sensor_start_measuring();
+    err_code = sensor_start_measuring();
     APP_ERROR_CHECK(err_code);
 }
 
@@ -380,7 +396,7 @@ uint32_t app_enble_init(ble_enble_t *m_enble)
         return err_code;
     }
 
-    err_code = app_timer_start(m_meaurement_timer_id, APP_TIMER_TICKS(m_measurement_period * 1000, 0), NULL);
+    err_code = app_timer_start(m_meaurement_timer_id, APP_TIMER_TICKS(FIRSTTIME_MEASUREMENT_DELAY * 1000, 0), NULL);
 
     led_blink(500);
 
