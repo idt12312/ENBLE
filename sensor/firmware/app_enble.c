@@ -323,6 +323,8 @@ void app_enble_on_device_id_update_evt(uint16_t new_value)
 
     NRF_LOG_INFO("device id is updated %d\n", new_value);
 
+    led_blink(100);
+
     m_device_id = new_value;
 
     err_code = advertising_update_data();
@@ -336,6 +338,8 @@ void app_enble_on_period_update_evt(uint16_t new_value)
     uint32_t err_code;
 
     NRF_LOG_INFO("period is updated %d\n", new_value);
+    
+    led_blink(100);
 
     m_measurement_period = new_value;
 

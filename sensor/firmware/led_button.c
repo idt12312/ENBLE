@@ -14,9 +14,12 @@
 APP_TIMER_DEF(m_led_blink_timer_id);
 static button_evt_handler_t m_button_evt_handler = NULL;
 
+static bool m_is_led_blinking;
+
 static void led_blink_timer_handler()
 {
     led_off();
+    m_is_led_blinking = false;
 }
 
 static void button_event_handler(uint8_t pin_no, uint8_t button_action)
@@ -33,6 +36,8 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 uint32_t led_init()
 {
     nrf_gpio_cfg_output(LED_PIN);
+    
+    m_is_led_blinking = false;
 
     return app_timer_create(&m_led_blink_timer_id, APP_TIMER_MODE_SINGLE_SHOT, led_blink_timer_handler);
 }
@@ -49,6 +54,13 @@ void led_off()
 
 uint32_t led_blink(uint32_t duration)
 {
+    if (m_is_led_blinking) 
+    {
+        return NRF_SUCCESS;
+    }
+
+    m_is_led_blinking = true;
+
     led_on();
     return app_timer_start(m_led_blink_timer_id, APP_TIMER_TICKS(duration, 0), NULL);
 }
