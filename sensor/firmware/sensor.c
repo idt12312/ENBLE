@@ -289,11 +289,11 @@ static void parse_sensor_data()
     // humidity in %, resolution is 0.001 %
     uint32_t humidity_data = bme280_compensate_humidity(humidity_uncomp_data);
 
-    // temperature in ℃ multiplied by 10
-    m_sensor_measurment_data.temperature = (int16_t)(temperature_data / 10);
-    // air pressure in hPa
-    m_sensor_measurment_data.pressure = (uint16_t)(pressure_data / 100);
-    // humidity in % multiplied by 10
+    // temperature in DegC, resolution is 0.01 DegC
+    m_sensor_measurment_data.temperature = (int16_t)(temperature_data);
+    // air pressure in Pa, resolution is 10 Pa
+    m_sensor_measurment_data.pressure = (uint16_t)(pressure_data / 10);
+    // humidity in %, resolution is 0.1 %
     m_sensor_measurment_data.humidity = (uint16_t)(humidity_data / 100);
     // battery voltage in mV
     uint32_t adc_result_averaged = 0;

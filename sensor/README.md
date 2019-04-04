@@ -51,14 +51,14 @@ The value of this characteristic is stored in nonvolatile memory.
 This characteristic indicates battery voltage of the device in mV. 
 
 ### Temperature
-This characteristic indicates temperature in ℃ **multiplied by 10**. 
+This characteristic indicates temperature in degC, resolution is 0.01 DegC. 
 A negative value is represented in two's complement number. 
 
 ### Humidity
-This characteristic indicates humidity in % **multiplied by 10**. 
+This characteristic indicates humidity in %, resolution is 0.1 %.
 
 ### Pressure
-This characteristic indicates air pressure in hPa. 
+This characteristic indicates air pressure in Pa, resolution is 10Pa
 
 
 
