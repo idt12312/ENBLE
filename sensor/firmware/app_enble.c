@@ -19,7 +19,7 @@
 #include "nrf_log_ctrl.h"
 
 #define APP_ADV_SLOW_TIMEOUT_IN_SECONDS 0  /**< The advertising timeout in units of seconds. 0 means continuously advertising without timeout. */
-#define APP_ADV_SLOW_INTERVAL 3200         /**< The advertising interval (in units of 0.625 ms. This value corresponds to 2.0 s). */
+#define APP_ADV_SLOW_INTERVAL 9600         /**< The advertising interval (in units of 0.625 ms. This value corresponds to 2.0 s). */
 #define APP_ADV_FAST_TIMEOUT_IN_SECONDS 10 /**< The advertising timeout in units of seconds. */
 #define APP_ADV_FAST_INTERVAL 160          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 0.1 s). */
 
