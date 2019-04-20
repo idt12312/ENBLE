@@ -2,8 +2,8 @@
 
 ![ENBLE](../doc/enble.jpg)
 
-This device measures temperature, humidity and pressure using BME280 and send these measured data with BLE Advertising and BLE GATT.
-The data format of BLE Advertising and BLE GATT is described bellow.
+This device measures temperature, humidity and pressure using BME280 and send these measured data over BLE advertising and GATT service.
+The data format of BLE advertising and GATT service is described bellow.
 Using advertising (not using GATT) to collect measured data enables a device to reduce current consumption.  
 
 ## BLE Advertise
@@ -111,21 +111,24 @@ I designed PCB to fit in the case, [**TAKACHI PS-65 Seriese**](http://www.takach
 | State       | Consumption | Interval   |
 |-------------|-------------|------------|
 | advertising | 29.4 μC     | 6.0 s      |
-| measuring   | 4.14 μC     | 60 s       |
+| measuring (start)   | 4.14 μC     | 60 s       |
+| measuring (end)   | 8.07 μC     | 60 s       |
 | sleeping    | 3.80 μA     | constantly |
+
+<img src="current_consumption/fig/advertising.png" width="500px">
 
 <table border="0">
     <tr>
-        <td><img src="current_consumption/fig/advertising.png"></td>
-        <td><img src="current_consumption/fig/measuring.png"></td>
+        <td><img src="current_consumption/fig/measuring_start.png"></td>
+        <td><img src="current_consumption/fig/measuring_end.png"></td>
     </tr>
 </table>
 
 
-From the above per a hour current consumption is  
-3600 / 6 * 29.4e-6 + 3600 / 60 * 4.14e-6 + 3600 * 3.8e-6 = 31.6 mC/h.
+From the above, current consumption per one hour is  
+3600 / 6 * 29.4μ + 3600 / 60 * (4.14μ + 8.07μ) + 3600 * 3.8μ = 32.1 mC/h.
 
-Since CR2032 battery charge is 810C(225mAh), 
+Because CR2032 battery charge is 810C(225mAh), 
 ENBLE can work in
-810 / 31.6e-3 = 25632h (**about 3 years**).
+810 / 31.6e-3 = 25233h (**about 3 years**).
 

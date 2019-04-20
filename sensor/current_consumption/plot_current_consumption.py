@@ -30,7 +30,6 @@ def plot_current_consumption(filename, plot_title, time_span, ylim):
     x = time*1e3
     y = current * 1e3
     fig = plt.figure(figsize=(8, 5), dpi=150)
-    #plt.plot(x,y)
     plt.fill_between(x, y, color="skyblue", alpha=0.4)
     plt.plot(x, y, color="skyblue")
 
@@ -40,10 +39,11 @@ def plot_current_consumption(filename, plot_title, time_span, ylim):
     plt.ylabel('Current [mA]')
     plt.grid()
     plt.savefig('fig/' + plot_title + '.png')
-    #plt.show()
+    
 
 
 plot_current_consumption('data/advertising.csv.gz', 'advertising', (-1e-3, 7e-3), (-0.5e-3, 16e-3))
-plot_current_consumption('data/sensor_measuring1.csv.gz', 'measuring', (-1e-3, 9e-3), (-0.2e-3, 5e-3))
-plot_current_consumption('data/advertising_and_measuring.csv.gz', 'advertising and measuring', (-8.2, 8.2), (-0.5e-3, 16e-3))
+plot_current_consumption('data/sensor_measuring1.csv.gz', 'measuring_start', (-1e-3, 9e-3), (-0.2e-3, 5e-3))
+plot_current_consumption('data/sensor_measuring2.csv.gz', 'measuring_end', (-1e-3, 4e-3), (-0.2e-3, 7e-3))
+plot_current_consumption('data/advertising_and_measuring.csv.gz', 'advertising_and_measuring', (-8.2, 8.2), (-0.5e-3, 16e-3))
 plot_current_consumption('data/connecting.csv.gz', 'connecting', (-0.25, 0.25), (-0.5e-3, 16e-3))
