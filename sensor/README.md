@@ -14,6 +14,10 @@ Using advertising (not using GATT) to collect measured data enables a device to 
 | Advertise Interval | 6000ms                |
 | Manufacturer data  | 10 bytes binary data  |
 
+ENBLE has a push button.
+If you push the button, advertising interval change into 100ms.
+It is useful to find the specified device which you press the button. 
+
 Manufacturer data has DeviceID and measurement results of sensors.  
 Data format is as shown below. 
 
@@ -90,7 +94,9 @@ What you need to do for build is executing ```make``` command.
 When you flah a firmware to an ENBLE sensor device, 
 connect the device via JLink and execute ```make flash```.
 
-## Schematic
+## PCB
+
+I design a PCB with KiCad. 
 
 ![ENBLE's schematic](pcb/ENBLE.svg)
 
@@ -98,7 +104,7 @@ The following is a simple block diagram.
 
 <img src="../doc/enble_block.svg" width="500px">
 
-I designed PCB fitting to the case [**TAKACHI PS-65 Seriese**](http://www.takachi-el.co.jp/data/pdf/2016-01-065.pdf). 
+I designed PCB to fit in the case, [**TAKACHI PS-65 Seriese**](http://www.takachi-el.co.jp/data/pdf/2016-01-065.pdf). 
 
 ### Current consumption
 
