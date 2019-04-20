@@ -1,3 +1,4 @@
+# This make file is based on nordic's example
 PROJECT_NAME     := ENBLE
 TARGETS          := nrf51822xxaa
 OUTPUT_DIRECTORY := build

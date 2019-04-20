@@ -1,11 +1,17 @@
-# ENBLE sensor 
+# ENBLE Sensor 
+
+![ENBLE](../doc/enble.jpg)
+
+This device measures temperature, humidity and pressure using BME280 and send these measured data with BLE Advertising and BLE GATT.
+The data format of BLE Advertising and BLE GATT is described bellow.
+Using advertising (not using GATT) to collect measured data enables a device to reduce current consumption.  
 
 ## BLE Advertise
 
 | Parameter          | Value                 |
 |--------------------|-----------------------|
 | Local Name         | "ENBLE"               |
-| Advertise Interval | 2000ms                |
+| Advertise Interval | 6000ms                |
 | Manufacturer data  | 10 bytes binary data  |
 
 Manufacturer data has DeviceID and measurement results of sensors.  
@@ -61,8 +67,9 @@ This characteristic indicates humidity in %, resolution is 0.1 %.
 This characteristic indicates air pressure in Pa, resolution is 10Pa
 
 
+## Build
 
-## Setup for build
+### Setup for build
 1. Download Nordic SDK ver 12.3.0
 2. Place Nordic SDK in firmware/lib  
 ex) The structure of directory must be is following.   
@@ -76,4 +83,43 @@ ex) The structure of directory must be is following.
 4. Modify toolchain configuration in 
     * for Linux or OSX user : $(NORDIC_SDK_PATH)/components/toolchain/gcc/Makefile.posix
     * for Windows user : $(NORDIC_SDK_PATH)/components/toolchain/gcc/Makefile.windows
-    
+
+### Build and Flash firmware
+This project can be build with GNU MAKE. 
+What you need to do for build is executing ```make``` command. 
+When you flah a firmware to an ENBLE sensor device, 
+connect the device via JLink and execute ```make flash```.
+
+## Schematic
+
+![ENBLE's schematic](pcb/ENBLE.svg)
+
+The following is a simple block diagram.
+
+<img src="../doc/enble_block.svg" width="500px">
+
+I designed PCB fitting to the case [**TAKACHI PS-65 Seriese**](http://www.takachi-el.co.jp/data/pdf/2016-01-065.pdf). 
+
+### Current consumption
+
+| State       | Consumption | Interval   |
+|-------------|-------------|------------|
+| advertising | 29.4 μC     | 6.0 s      |
+| measuring   | 4.14 μC     | 60 s       |
+| sleeping    | 3.80 μA     | constantly |
+
+<table border="0">
+    <tr>
+        <td><img src="current_consumption/fig/advertising.png"></td>
+        <td><img src="current_consumption/fig/measuring.png"></td>
+    </tr>
+</table>
+
+
+From the above per a hour current consumption is  
+3600 / 6 * 29.4e-6 + 3600 / 60 * 4.14e-6 + 3600 * 3.8e-6 = 31.6 mC/h.
+
+Since CR2032 battery charge is 810C(225mAh), 
+ENBLE can work in
+810 / 31.6e-3 = 25632h (**about 3 years**).
+
