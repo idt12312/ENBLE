@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name ENBLE)(type Legacy)(uri ${KIPRJMOD}/lib/ENBLE.lib)(options "")(descr ""))
+)

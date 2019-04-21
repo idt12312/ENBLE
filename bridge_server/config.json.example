@@ -1,0 +1,24 @@
+{
+    "sensor_name": "ENBLE",
+    "server_address": "192.168.1.1",
+    "server_port": 8080,
+    "post_url": "/api/v1/{ACCESS_TOKEN}/telemetry",
+    "access_token_set": [
+        {
+            "device_id": 1,
+            "access_token": "AAAAAAA"
+        },
+        {
+            "device_id": 2,
+            "access_token": "BBBBBBB"
+        },
+        {
+            "device_id": 3,
+            "access_token": "CCCCCCC"
+        },
+        {
+            "device_id": 4,
+            "access_token": "DDDDDDD"
+        }
+    ]
+}
